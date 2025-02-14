@@ -1,0 +1,6 @@
+IndentWidth: 4
+SpaceBeforeParens: Never
+IndentCaseLabels: true
+IndentCaseBlocks: true
+AlignConsecutiveMacros: Consecutive
+ColumnLimit: 90

@@ -1,7 +1,7 @@
 CC=gcc
 CSA=scan-build
 
-CFLAGS = -c -std=c99 -Wall -Wextra -ggdb3
+CFLAGS = -c -std=gnu99 -Wall -Wextra -ggdb3
 
 SOURCES = $(shell find src -name "*.c")
 HEADER_FILES = $(shell find src -name "*.h")

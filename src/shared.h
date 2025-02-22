@@ -8,7 +8,10 @@
 void *p_stil_malloc(size_t size, const char *file, int line);
 #define stil_malloc(size) p_stil_malloc(size, __FILE__, __LINE__)
 
-void *p_still_realloc(void *mem, size_t size, const char *file, int line);
+void *p_stil_calloc(size_t nmemb, size_t size, const char *file, int line);
+#define stil_calloc(nmemb, size) p_stil_calloc(nmemb, size, __FILE__, __LINE__)
+
+void *p_stil_realloc(void *mem, size_t size, const char *file, int line);
 #define stil_realloc(mem, size) p_stil_realloc(mem, size, __FILE__, __LINE__)
 
 void stil_free(void *mem);

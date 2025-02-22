@@ -1,12 +1,14 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include "ht.h"
 #include "shared.h"
 #include <stdbool.h>
 
 typedef struct _Lexer {
     const char *whole;
     const char *rest;
+    kw_ht *kw_lookup;
     size_t pos;
     size_t source_len;
 } Lexer;

@@ -14,7 +14,20 @@ void *p_stil_malloc(size_t size, const char *file, int line) {
     return mem;
 }
 
-void *p_still_realloc(void *mem, size_t size, const char *file, int line) {
+void *p_stil_calloc(size_t nmemb, size_t size, const char *file, int line) {
+    if(size == 0) {
+        return NULL;
+    }
+
+    void *mem = calloc(nmemb, size);
+    if(!mem) {
+        stil_fatal("Couldn't calloc in %s at line %d", file, line);
+    }
+
+    return mem;
+}
+
+void *p_stil_realloc(void *mem, size_t size, const char *file, int line) {
     if(size == 0) {
         free(mem);
         return NULL;

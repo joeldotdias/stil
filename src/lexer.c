@@ -7,8 +7,9 @@ static inline void advance(Lexer *l);
 static inline bool is_st_ident_ch(char c);
 static inline char *str_to_upper(char *s);
 
-Lexer *lexer_init(const char *filepath) {
-    Lexer *lexer = stil_malloc(sizeof *lexer);
+Lexer *lexer_init(const char *filepath, Arena *arena) {
+    /* Lexer *lexer = stil_malloc(sizeof *lexer); */
+    Lexer *lexer = arena_alloc(arena, sizeof *lexer);
 
     FILE *fd = fopen(filepath, "r");
     if(!fd) {
@@ -19,6 +20,7 @@ Lexer *lexer_init(const char *filepath) {
     size_t len = ftell(fd);
     fseek(fd, 0, SEEK_SET);
     char *buffer = stil_malloc(len + 1);
+    /* char *buffer = arena_alloc(arena, len + 1); */
     size_t bytes_read = fread(buffer, sizeof buffer[0], len, fd);
     if(bytes_read != len) {
         stil_fatal("Couldn't read from file %s", filepath);
@@ -38,8 +40,8 @@ Lexer *lexer_init(const char *filepath) {
     return lexer;
 }
 
-static Token *make_sym_token(TokenKind kind, size_t offset) {
-    Token *tok = stil_malloc(sizeof *tok);
+static Token *make_sym_token(TokenKind kind, size_t offset, Arena *arena) {
+    Token *tok = (Token *)arena_alloc(arena, sizeof *tok);
     tok->kind = kind;
     tok->offset = offset;
 
@@ -54,9 +56,9 @@ static char peek_n(Lexer *l, size_t n) {
 }
 
 #define peek(lexer)        peek_n(lexer, 1)
-#define just_tok(tok_kind) make_sym_token(tok_kind, curr_at);
+#define just_tok(tok_kind) make_sym_token(tok_kind, curr_at, arena);
 
-Token *lexer_next_tok(Lexer *lexer) {
+Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
     Token *tok = NULL;
     Started started = ST_None;
 
@@ -162,9 +164,11 @@ Token *lexer_next_tok(Lexer *lexer) {
                 } else if(isalpha(curr)) {
                     started = ST_Ident_or_Keyword;
                 } else {
-                    tok = stil_malloc(sizeof *tok);
+                    /* tok = stil_malloc(sizeof *tok); */
+                    tok = arena_alloc(arena, sizeof *tok);
                     tok->kind = TOKEN_ILLEGAL;
-                    tok->string_val = stil_malloc(2);
+                    /* tok->string_val = stil_malloc(2); */
+                    tok->string_val = arena_alloc(arena, 2);
                     tok->string_val[0] = curr;
                     tok->string_val[1] = '\0';
                     return tok;
@@ -176,15 +180,18 @@ Token *lexer_next_tok(Lexer *lexer) {
                 {
                     const char *end = strchr(lexer->rest + 1, '\'');
                     if(!end) {
-                        stil_warn("Got ' but string literal is not properly closed");
+                        stil_warn(
+                            "Got ' but string literal is not properly closed");
                         continue;
                     }
 
                     size_t s_len = (end - lexer->rest);
-                    tok = stil_malloc(sizeof *tok);
+                    /* tok = stil_malloc(sizeof *tok); */
+                    tok = arena_alloc(arena, sizeof *tok);
                     tok->kind = TOKEN_LITERAL_STRING;
                     tok->offset = curr_at;
-                    tok->string_val = stil_malloc(s_len + 1);
+                    /* tok->string_val = stil_malloc(s_len + 1); */
+                    tok->string_val = arena_alloc(arena, s_len + 1);
                     memcpy(tok->string_val, c_onwards + 1, s_len);
                     tok->string_val[s_len] = '\0';
 
@@ -212,13 +219,16 @@ Token *lexer_next_tok(Lexer *lexer) {
 
                     size_t total_len = remaining_len + 1;
                     char *lexeme = stil_malloc(total_len + 1);
+                    /* char *lexeme = arena_alloc(arena, total_len + 1); */
                     memcpy(lexeme, c_onwards, total_len);
                     lexeme[total_len] = '\0';
 
-                    tok = stil_malloc(sizeof *tok);
+                    /* tok = stil_malloc(sizeof *tok); */
+                    tok = arena_alloc(arena, sizeof *tok);
                     tok->offset = curr_at;
 
-                    int kw = ht_get(lexer->kw_lookup, str_to_upper(strdup(lexeme)));
+                    int kw =
+                        ht_get(lexer->kw_lookup, str_to_upper(strdup(lexeme)));
                     if(kw == -1) {
                         tok->kind = TOKEN_IDENT;
                         tok->string_val = strdup(lexeme);
@@ -355,8 +365,8 @@ static inline void advance(Lexer *l) {
 }
 
 static inline bool is_st_ident_ch(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-           c == '_';
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
 }
 
 static char *str_to_upper(char *s) {
@@ -368,9 +378,9 @@ static char *str_to_upper(char *s) {
     return orig;
 }
 
-#define tok_dbg(kind, fmt, ...)                                                          \
-    case kind:                                                                           \
-        stil_info(fmt, ##__VA_ARGS__);                                                   \
+#define tok_dbg(kind, fmt, ...)                                                \
+    case kind:                                                                 \
+        stil_info(fmt, ##__VA_ARGS__);                                         \
         break
 
 void token_show(Token *token) {

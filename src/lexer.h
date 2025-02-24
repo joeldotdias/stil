@@ -1,6 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include "arena.h"
 #include "ht.h"
 #include "shared.h"
 #include <stdbool.h>
@@ -187,8 +188,8 @@ typedef struct _Token {
     };
 } Token;
 
-Lexer *lexer_init(const char *filepath);
-Token *lexer_next_tok(Lexer *lexer);
+Lexer *lexer_init(const char *filepath, Arena *arena);
+Token *lexer_next_tok(Lexer *lexer, Arena *arena);
 void token_show(Token *token);
 
 typedef enum _Started {

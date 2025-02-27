@@ -1,6 +1,7 @@
 CLASS MyClass
     VAR
         x, y : INT;
+        temperature: REAL := 38.2;
     END_VAR
 
     METHOD testMethod
@@ -8,5 +9,6 @@ CLASS MyClass
         VAR myMethodLocalVar : INT; END_VAR
 
         x := myMethodArg;
+        y := 2
     END_METHOD
 END_CLASS

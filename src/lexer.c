@@ -8,7 +8,6 @@ static inline bool is_st_ident_ch(char c);
 static inline char *str_to_upper(char *s);
 
 Lexer *lexer_init(const char *filepath, Arena *arena) {
-    /* Lexer *lexer = stil_malloc(sizeof *lexer); */
     Lexer *lexer = arena_alloc(arena, sizeof *lexer);
 
     FILE *fd = fopen(filepath, "r");
@@ -19,8 +18,7 @@ Lexer *lexer_init(const char *filepath, Arena *arena) {
     fseek(fd, 0, SEEK_END);
     size_t len = ftell(fd);
     fseek(fd, 0, SEEK_SET);
-    char *buffer = stil_malloc(len + 1);
-    /* char *buffer = arena_alloc(arena, len + 1); */
+    char *buffer = arena_alloc(arena, len + 1);
     size_t bytes_read = fread(buffer, sizeof buffer[0], len, fd);
     if(bytes_read != len) {
         stil_fatal("Couldn't read from file %s", filepath);
@@ -35,7 +33,6 @@ Lexer *lexer_init(const char *filepath, Arena *arena) {
     lexer->pos = 0;
     lexer->source_len = bytes_read;
     fclose(fd);
-    stil_free(buffer);
 
     return lexer;
 }
@@ -164,10 +161,8 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
                 } else if(isalpha(curr)) {
                     started = ST_Ident_or_Keyword;
                 } else {
-                    /* tok = stil_malloc(sizeof *tok); */
                     tok = arena_alloc(arena, sizeof *tok);
                     tok->kind = TOKEN_ILLEGAL;
-                    /* tok->string_val = stil_malloc(2); */
                     tok->string_val = arena_alloc(arena, 2);
                     tok->string_val[0] = curr;
                     tok->string_val[1] = '\0';
@@ -186,11 +181,9 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
                     }
 
                     size_t s_len = (end - lexer->rest);
-                    /* tok = stil_malloc(sizeof *tok); */
                     tok = arena_alloc(arena, sizeof *tok);
                     tok->kind = TOKEN_LITERAL_STRING;
                     tok->offset = curr_at;
-                    /* tok->string_val = stil_malloc(s_len + 1); */
                     tok->string_val = arena_alloc(arena, s_len + 1);
                     memcpy(tok->string_val, c_onwards + 1, s_len);
                     tok->string_val[s_len] = '\0';
@@ -203,6 +196,51 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
             case ST_WideString:
                 break;
             case ST_Number:
+                {
+                    bool got_dot = false;
+                    const char *first_non_digit = c_onwards;
+                    while(*first_non_digit &&
+                          (isdigit((unsigned char)*first_non_digit) ||
+                           (*first_non_digit == '.' && !got_dot))) {
+                        if(*first_non_digit == '.') {
+                            got_dot = true;
+                        }
+                        first_non_digit++;
+                    }
+
+                    size_t first_non_digit_index = first_non_digit - c_onwards;
+                    size_t literal_len = first_non_digit_index;
+
+                    // ** Truncate if there is more than one dot **
+                    const char *dot1 = strchr(c_onwards, '.');
+                    if(dot1) {
+                        const char *dot2 = strchr(dot1 + 1, '.');
+                        if(dot2) {
+                            literal_len =
+                                dot1 - c_onwards; // Stop at the first dot
+                            got_dot = false;      // Treat as an integer
+                        }
+                    }
+
+                    Token *tok = arena_alloc(arena, sizeof *tok);
+                    tok->offset = curr_at;
+                    char num_buf[literal_len + 1];
+                    snprintf(num_buf, literal_len + 1, "%s", c_onwards);
+
+                    if(got_dot) {
+                        tok->kind = TOKEN_LITERAL_REAL;
+                        tok->float_val = strtod(num_buf, NULL);
+                    } else {
+                        tok->kind = TOKEN_LITERAL_INTEGER;
+                        tok->int_val = atoi(num_buf);
+                    }
+
+                    size_t extra_bytes = literal_len - 1;
+                    lexer->pos += extra_bytes;
+                    lexer->rest += extra_bytes;
+
+                    return tok;
+                }
                 break;
             case ST_Keyword:
                 break;
@@ -219,11 +257,9 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
 
                     size_t total_len = remaining_len + 1;
                     char *lexeme = stil_malloc(total_len + 1);
-                    /* char *lexeme = arena_alloc(arena, total_len + 1); */
                     memcpy(lexeme, c_onwards, total_len);
                     lexeme[total_len] = '\0';
 
-                    /* tok = stil_malloc(sizeof *tok); */
                     tok = arena_alloc(arena, sizeof *tok);
                     tok->offset = curr_at;
 
@@ -494,6 +530,9 @@ void token_show(Token *token) {
         tok_dbg(TOKEN_EOF, "EOF");
         tok_dbg(TOKEN_ILLEGAL, "ILLEGAL %s", token->string_val);
 
+        tok_dbg(TOKEN_LITERAL_INTEGER, "INT LITERAL %d", token->int_val);
+        tok_dbg(TOKEN_LITERAL_REAL, "REAL LITERAL %f", token->float_val);
+
         case TOKEN_PROPERTY_EXTERNAL:
         case TOKEN_PROPERTY_BY_REF:
         case TOKEN_PROPERTY_CONSTANT:
@@ -501,7 +540,6 @@ void token_show(Token *token) {
         case TOKEN_LITERAL_INTEGER_HEX:
         case TOKEN_LITERAL_INTEGER_OCT:
         case TOKEN_LITERAL_INTEGER_BIN:
-        case TOKEN_LITERAL_INTEGER:
         case TOKEN_LITERAL_NULL:
         case TOKEN_LITERAL_TRUE:
         case TOKEN_LITERAL_FALSE:

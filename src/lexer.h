@@ -9,9 +9,11 @@
 typedef struct _Lexer {
     const char *whole;
     const char *rest;
+    const char *source;
     kw_ht *kw_lookup;
     size_t pos;
     size_t source_len;
+    int n_errors;
 } Lexer;
 
 typedef enum _TokenKind {
@@ -25,6 +27,8 @@ typedef enum _TokenKind {
     TOKEN_KEYWORD_EXTENDS,
     TOKEN_KEYWORD_IMPLEMENTS,
     TOKEN_KEYWORD_INTERFACE,
+    TOKEN_KEYWORD_INT,
+    TOKEN_KEYWORD_REAL,
     TOKEN_KEYWORD_END_INTERFACE,
     TOKEN_KEYWORD_PROPERTY,
     TOKEN_KEYWORD_END_PROPERTY,
@@ -62,19 +66,19 @@ typedef enum _TokenKind {
     TOKEN_KEYWORD_ACTION,
     TOKEN_KEYWORD_END_ACTION,
     TOKEN_KEYWORD_END_ACTIONS,
-    TOKEN_KEYWORD_COLON,
-    TOKEN_KEYWORD_SEMICOLON,
-    TOKEN_KEYWORD_ASSIGN,
+    TOKEN_COLON,
+    TOKEN_SEMICOLON,
+    TOKEN_ASSIGN,
     TOKEN_KEYWORD_OUTPUT_ASSIGNMENT,
     TOKEN_KEYWORD_REFERENCE_ASSIGNMENT,
-    TOKEN_KEYWORD_LPAREN,
-    TOKEN_KEYWORD_RPAREN,
-    TOKEN_KEYWORD_LSQUARE,
-    TOKEN_KEYWORD_RSQUARE,
-    TOKEN_KEYWORD_COMMA,
-    TOKEN_KEYWORD_DOT_DOT_DOT,
-    TOKEN_KEYWORD_DOT_DOT,
-    TOKEN_KEYWORD_DOT,
+    TOKEN_LPAREN,
+    TOKEN_RPAREN,
+    TOKEN_LSQUARE,
+    TOKEN_RSQUARE,
+    TOKEN_COMMA,
+    TOKEN_DOT_DOT_DOT,
+    TOKEN_DOT_DOT,
+    TOKEN_DOT,
     TOKEN_KEYWORD_IF,
     TOKEN_KEYWORD_THEN,
     TOKEN_KEYWORD_ELSE_IF,
@@ -162,7 +166,8 @@ typedef enum _DirectAccessType {
 typedef struct _Token {
     TokenKind kind;
     size_t offset;
-    union {
+    char *string_val;
+    /* union {
         int int_val;
         double float_val;
         bool boolean_val;
@@ -186,12 +191,16 @@ typedef struct _Token {
             DirectAccessType direct_type;
             int offset;
         } direct_access;
-    };
+    }; */
 } Token;
 
-Lexer *lexer_init(const char *filepath, Arena *arena);
-Token *lexer_next_tok(Lexer *lexer, Arena *arena);
-void token_show(Token *token);
+/* Lexer *lexer_init(const char *filepath, Arena *arena);
+Token *lexer_next_tok(Lexer *lexer, Arena *arena); */
+Lexer *lexer_init(const char *filepath);
+Token *lexer_next_tok(Lexer *lexer);
+// void token_show(Token *token);
+char *tok_dbg(Token *token);
+void report(Lexer *lexer, size_t offset, size_t len, const char *message);
 
 typedef enum _Started {
     ST_String,

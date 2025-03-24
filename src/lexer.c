@@ -7,8 +7,10 @@ static inline void advance(Lexer *l);
 static inline bool is_st_ident_ch(char c);
 static inline char *str_to_upper(char *s);
 
-Lexer *lexer_init(const char *filepath, Arena *arena) {
-    Lexer *lexer = arena_alloc(arena, sizeof *lexer);
+/* Lexer *lexer_init(const char *filepath, Arena *arena) { */
+Lexer *lexer_init(const char *filepath) {
+    /* Lexer *lexer = arena_alloc(arena, sizeof *lexer); */
+    Lexer *lexer = stil_malloc(sizeof *lexer);
 
     FILE *fd = fopen(filepath, "r");
     if(!fd) {
@@ -18,7 +20,8 @@ Lexer *lexer_init(const char *filepath, Arena *arena) {
     fseek(fd, 0, SEEK_END);
     size_t len = ftell(fd);
     fseek(fd, 0, SEEK_SET);
-    char *buffer = arena_alloc(arena, len + 1);
+    /* char *buffer = arena_alloc(arena, len + 1); */
+    char *buffer = stil_malloc(len + 1);
     size_t bytes_read = fread(buffer, sizeof buffer[0], len, fd);
     if(bytes_read != len) {
         stil_fatal("Couldn't read from file %s", filepath);
@@ -27,20 +30,26 @@ Lexer *lexer_init(const char *filepath, Arena *arena) {
 
     lexer->whole = strdup(buffer);
     lexer->rest = lexer->whole;
+    lexer->source = strdup(filepath);
     lexer->kw_lookup = ht_init();
     fillup_keywords(lexer->kw_lookup);
 
     lexer->pos = 0;
     lexer->source_len = bytes_read;
+    lexer->n_errors = 0;
     fclose(fd);
 
     return lexer;
 }
 
-static Token *make_sym_token(TokenKind kind, size_t offset, Arena *arena) {
-    Token *tok = (Token *)arena_alloc(arena, sizeof *tok);
+/* static Token *make_sym_token(TokenKind kind, size_t offset, Arena *arena) {
+ */
+static Token *make_sym_token(TokenKind kind, size_t offset) {
+    /* Token *tok = (Token *)arena_alloc(arena, sizeof *tok); */
+    Token *tok = stil_malloc(sizeof *tok);
     tok->kind = kind;
     tok->offset = offset;
+    tok->string_val = NULL;
 
     return tok;
 }
@@ -52,10 +61,12 @@ static char peek_n(Lexer *l, size_t n) {
     return l->rest[n - 1];
 }
 
-#define peek(lexer)        peek_n(lexer, 1)
-#define just_tok(tok_kind) make_sym_token(tok_kind, curr_at, arena);
+#define peek(lexer) peek_n(lexer, 1)
+/* #define just_tok(tok_kind) make_sym_token(tok_kind, curr_at, arena); */
+#define just_tok(tok_kind) make_sym_token(tok_kind, curr_at);
 
-Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
+/* Token *lexer_next_tok(Lexer *lexer, Arena *arena) { */
+Token *lexer_next_tok(Lexer *lexer) {
     Token *tok = NULL;
     Started started = ST_None;
 
@@ -74,32 +85,32 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
             case ':':
                 if(peek(lexer) == '=') {
                     advance(lexer);
-                    return just_tok(TOKEN_KEYWORD_ASSIGN)
+                    return just_tok(TOKEN_ASSIGN)
                 } else {
-                    return just_tok(TOKEN_KEYWORD_COLON);
+                    return just_tok(TOKEN_COLON);
                 }
             case ';':
-                return just_tok(TOKEN_KEYWORD_SEMICOLON);
+                return just_tok(TOKEN_SEMICOLON);
             case '(':
-                return just_tok(TOKEN_KEYWORD_LPAREN);
+                return just_tok(TOKEN_LPAREN);
             case ')':
-                return just_tok(TOKEN_KEYWORD_RPAREN);
+                return just_tok(TOKEN_RPAREN);
             case '[':
-                return just_tok(TOKEN_KEYWORD_LSQUARE);
+                return just_tok(TOKEN_LSQUARE);
             case ']':
-                return just_tok(TOKEN_KEYWORD_RSQUARE);
+                return just_tok(TOKEN_RSQUARE);
             case ',':
-                return just_tok(TOKEN_KEYWORD_COMMA);
+                return just_tok(TOKEN_COMMA);
             case '.':
                 if(peek(lexer) == '.') {
                     advance(lexer);
                     if(peek_n(lexer, 2) == '.') {
                         advance(lexer);
-                        return just_tok(TOKEN_KEYWORD_DOT_DOT_DOT);
+                        return just_tok(TOKEN_DOT_DOT_DOT);
                     }
-                    return just_tok(TOKEN_KEYWORD_DOT_DOT);
+                    return just_tok(TOKEN_DOT_DOT);
                 } else {
-                    return just_tok(TOKEN_KEYWORD_DOT);
+                    return just_tok(TOKEN_DOT);
                 }
 
             case '+':
@@ -161,9 +172,11 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
                 } else if(isalpha(curr)) {
                     started = ST_Ident_or_Keyword;
                 } else {
-                    tok = arena_alloc(arena, sizeof *tok);
+                    /* tok = arena_alloc(arena, sizeof *tok); */
+                    tok = stil_malloc(sizeof *tok);
                     tok->kind = TOKEN_ILLEGAL;
-                    tok->string_val = arena_alloc(arena, 2);
+                    /* tok->string_val = arena_alloc(arena, 2); */
+                    tok->string_val = stil_malloc(2);
                     tok->string_val[0] = curr;
                     tok->string_val[1] = '\0';
                     return tok;
@@ -181,10 +194,12 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
                     }
 
                     size_t s_len = (end - lexer->rest);
-                    tok = arena_alloc(arena, sizeof *tok);
+                    /* tok = arena_alloc(arena, sizeof *tok); */
+                    tok = stil_malloc(sizeof *tok);
                     tok->kind = TOKEN_LITERAL_STRING;
                     tok->offset = curr_at;
-                    tok->string_val = arena_alloc(arena, s_len + 1);
+                    /* tok->string_val = arena_alloc(arena, s_len + 1); */
+                    tok->string_val = stil_malloc(s_len + 1);
                     memcpy(tok->string_val, c_onwards + 1, s_len);
                     tok->string_val[s_len] = '\0';
 
@@ -222,20 +237,24 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
                         }
                     }
 
-                    Token *tok = arena_alloc(arena, sizeof *tok);
+                    /* Token *tok = arena_alloc(arena, sizeof *tok); */
+                    Token *tok = stil_malloc(sizeof *tok);
                     tok->offset = curr_at;
                     char num_buf[literal_len + 1];
                     snprintf(num_buf, literal_len + 1, "%s", c_onwards);
 
                     if(got_dot) {
                         tok->kind = TOKEN_LITERAL_REAL;
-                        tok->float_val = strtod(num_buf, NULL);
+                        /* tok->float_val = strtod(num_buf, NULL); */
                     } else {
                         tok->kind = TOKEN_LITERAL_INTEGER;
-                        tok->int_val = atoi(num_buf);
+                        /* tok->int_val = atoi(num_buf); */
                     }
+                    tok->string_val = strdup(num_buf);
 
                     size_t extra_bytes = literal_len - 1;
+                    /* report(lexer, tok->offset, literal_len,
+                           "Got number literal"); */
                     lexer->pos += extra_bytes;
                     lexer->rest += extra_bytes;
 
@@ -260,7 +279,8 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
                     memcpy(lexeme, c_onwards, total_len);
                     lexeme[total_len] = '\0';
 
-                    tok = arena_alloc(arena, sizeof *tok);
+                    /* tok = arena_alloc(arena, sizeof *tok); */
+                    tok = stil_malloc(sizeof *tok);
                     tok->offset = curr_at;
 
                     int kw =
@@ -289,6 +309,78 @@ Token *lexer_next_tok(Lexer *lexer, Arena *arena) {
     }
 
     return NULL;
+}
+void report(Lexer *lexer, size_t offset, size_t len, const char *message) {
+    lexer->n_errors++;
+    const char *start = lexer->whole;
+    const char *curr = start + offset;
+
+    const char *line_start = curr;
+    while(line_start > start && *(line_start - 1) != '\n') {
+        line_start--;
+    }
+
+    const char *line_end = curr;
+    while(*line_end && *line_end != '\n') {
+        line_end++;
+    }
+
+    size_t column = curr - line_start;
+
+    // previous and next lines
+    const char *prev_line_end = (line_start > start) ? line_start - 1 : NULL;
+    const char *next_line_start = (*line_end) ? line_end + 1 : NULL;
+
+    size_t line_number = 1;
+    for(const char *ptr = start; ptr < line_start; ptr++) {
+        if(*ptr == '\n') {
+            line_number++;
+        }
+    }
+
+    printf(ANSI_BOLD ANSI_RED "Error: " ANSI_RESET ANSI_BRIGHT_RED "%s%s\n",
+           message, ANSI_RESET);
+    printf(ANSI_BOLD ANSI_BRIGHT_BLUE "--> " ANSI_RESET "%s:%zu\n",
+           lexer->source, line_number);
+
+    // alignment of line numbers
+    size_t num_width = snprintf(NULL, 0, "%zu", line_number + 1);
+
+    if(prev_line_end) {
+        const char *prev_line_start = prev_line_end;
+        while(prev_line_start > start && *(prev_line_start - 1) != '\n') {
+            prev_line_start--;
+        }
+        size_t prev_line_number = line_number - 1;
+        printf(ANSI_BRIGHT_BLUE "%*zu |" ANSI_RESET " %.*s", (int)num_width,
+               prev_line_number, (int)(prev_line_end - prev_line_start + 1),
+               prev_line_start);
+    }
+
+    printf(ANSI_BRIGHT_BLUE "%*zu |" ANSI_RESET " %.*s\n", (int)num_width,
+           line_number, (int)(line_end - line_start), line_start);
+
+    printf(ANSI_BRIGHT_BLUE "%*s | " ANSI_RESET, (int)num_width, "");
+    for(size_t i = 0; i < column; i++) {
+        putchar(' ');
+    }
+    printf("%s", ANSI_BOLD ANSI_BRIGHT_RED);
+    for(size_t i = 0; i < len; i++) {
+        putchar('^');
+    }
+    putchar('\n');
+    printf("%s", ANSI_RESET);
+
+    if(next_line_start) {
+        const char *next_line_end = next_line_start;
+        while(*next_line_end && *next_line_end != '\n') {
+            next_line_end++;
+        }
+        size_t next_line_number = line_number + 1;
+        printf(ANSI_BRIGHT_BLUE "%*zu |" ANSI_RESET " %.*s\n\n", (int)num_width,
+               next_line_number, (int)(next_line_end - next_line_start),
+               next_line_start);
+    }
 }
 
 static void fillup_keywords(kw_ht *table) {
@@ -387,6 +479,8 @@ static void fillup_keywords(kw_ht *table) {
     ht_set(table, "AT", TOKEN_KEYWORD_AT);
     ht_set(table, "END_CASE", TOKEN_KEYWORD_END_CASE);
     ht_set(table, "ENDCASE", TOKEN_KEYWORD_END_CASE);
+    ht_set(table, "INT", TOKEN_KEYWORD_INT);
+    ht_set(table, "REAL", TOKEN_KEYWORD_REAL);
 
     ht_set(table, "MOD", TOKEN_OPERATOR_MODULO);
     ht_set(table, "AND", TOKEN_OPERATOR_AND);
@@ -414,124 +508,129 @@ static char *str_to_upper(char *s) {
     return orig;
 }
 
-#define tok_dbg(kind, fmt, ...)                                                \
+#define tok_str(kind, str)                                                     \
     case kind:                                                                 \
-        stil_info(fmt, ##__VA_ARGS__);                                         \
+        strcat(buffer, str);                                                   \
         break
 
-void token_show(Token *token) {
+char *tok_dbg(Token *token) {
+    char buffer[256] = {0};
+
     switch(token->kind) {
-        tok_dbg(TOKEN_KEYWORD_PROGRAM, "PROGRAM");
-        tok_dbg(TOKEN_KEYWORD_CLASS, "CLASS");
-        tok_dbg(TOKEN_KEYWORD_END_CLASS, "END_CLASS");
-        tok_dbg(TOKEN_KEYWORD_EXTENDS, "EXTENDS");
-        tok_dbg(TOKEN_KEYWORD_IMPLEMENTS, "IMPLEMENTS");
-        tok_dbg(TOKEN_KEYWORD_INTERFACE, "INTERFACE");
-        tok_dbg(TOKEN_KEYWORD_END_INTERFACE, "END_INTERFACE");
-        tok_dbg(TOKEN_KEYWORD_PROPERTY, "PROPERTY");
-        tok_dbg(TOKEN_KEYWORD_END_PROPERTY, "END_PROPERTY");
-        tok_dbg(TOKEN_KEYWORD_VAR_INPUT, "VAR_INPUT");
-        tok_dbg(TOKEN_KEYWORD_VAR_OUTPUT, "VAR_OUTPUT");
-        tok_dbg(TOKEN_KEYWORD_VAR, "VAR");
-        tok_dbg(TOKEN_KEYWORD_VAR_CONFIG, "VAR_CONFIG");
-        tok_dbg(TOKEN_KEYWORD_ABSTRACT, "ABSTRACT");
-        tok_dbg(TOKEN_KEYWORD_FINAL, "FINAL");
-        tok_dbg(TOKEN_KEYWORD_METHOD, "METHOD");
-        tok_dbg(TOKEN_KEYWORD_CONSTANT, "CONSTANT");
-        tok_dbg(TOKEN_KEYWORD_RETAIN, "RETAIN");
-        tok_dbg(TOKEN_KEYWORD_NON_RETAIN, "NON_RETAIN");
-        tok_dbg(TOKEN_KEYWORD_VAR_TEMP, "VAR_TEMP");
-        tok_dbg(TOKEN_KEYWORD_END_METHOD, "END_METHOD");
-        tok_dbg(TOKEN_KEYWORD_ACCESS_PUBLIC, "ACCESS_PUBLIC");
-        tok_dbg(TOKEN_KEYWORD_ACCESS_PRIVATE, "ACCESS_PRIVATE");
-        tok_dbg(TOKEN_KEYWORD_ACCESS_INTERNAL, "ACCESS_INTERNAL");
-        tok_dbg(TOKEN_KEYWORD_ACCESS_PROTECTED, "ACCESS_PROTECTED");
-        tok_dbg(TOKEN_KEYWORD_OVERRIDE, "OVERRIDE");
-        tok_dbg(TOKEN_KEYWORD_VAR_GLOBAL, "VAR_GLOBAL");
-        tok_dbg(TOKEN_KEYWORD_VAR_IN_OUT, "VAR_IN_OUT");
-        tok_dbg(TOKEN_KEYWORD_VAR_EXTERNAL, "VAR_EXTERNAL");
-        tok_dbg(TOKEN_KEYWORD_END_VAR, "END_VAR");
-        tok_dbg(TOKEN_KEYWORD_END_PROGRAM, "END_PROGRAM");
-        tok_dbg(TOKEN_KEYWORD_FUNCTION, "FUNCTION");
-        tok_dbg(TOKEN_KEYWORD_END_FUNCTION, "END_FUNCTION");
-        tok_dbg(TOKEN_KEYWORD_FUNCTION_BLOCK, "FUNCTION_BLOCK");
-        tok_dbg(TOKEN_KEYWORD_END_FUNCTION_BLOCK, "END_FUNCTION_BLOCK");
-        tok_dbg(TOKEN_KEYWORD_TYPE, "TYPE");
-        tok_dbg(TOKEN_KEYWORD_STRUCT, "STRUCT");
-        tok_dbg(TOKEN_KEYWORD_END_TYPE, "END_TYPE");
-        tok_dbg(TOKEN_KEYWORD_END_STRUCT, "END_STRUCT");
-        tok_dbg(TOKEN_KEYWORD_ACTIONS, "ACTIONS");
-        tok_dbg(TOKEN_KEYWORD_ACTION, "ACTION");
-        tok_dbg(TOKEN_KEYWORD_END_ACTION, "END_ACTION");
-        tok_dbg(TOKEN_KEYWORD_END_ACTIONS, "END_ACTIONS");
-        tok_dbg(TOKEN_KEYWORD_COLON, "COLON");
-        tok_dbg(TOKEN_KEYWORD_SEMICOLON, "SEMICOLON");
-        tok_dbg(TOKEN_KEYWORD_ASSIGN, "ASSIGN");
-        tok_dbg(TOKEN_KEYWORD_OUTPUT_ASSIGNMENT, "OUTPUT_ASSIGNMENT");
-        tok_dbg(TOKEN_KEYWORD_REFERENCE_ASSIGNMENT, "REFERENCE_ASSIGNMENT");
-        tok_dbg(TOKEN_KEYWORD_LPAREN, "LPAREN");
-        tok_dbg(TOKEN_KEYWORD_RPAREN, "RPAREN");
-        tok_dbg(TOKEN_KEYWORD_LSQUARE, "LSQUARE");
-        tok_dbg(TOKEN_KEYWORD_RSQUARE, "RSQUARE");
-        tok_dbg(TOKEN_KEYWORD_COMMA, "COMMA");
-        tok_dbg(TOKEN_KEYWORD_DOT_DOT_DOT, "DOT_DOT_DOT");
-        tok_dbg(TOKEN_KEYWORD_DOT_DOT, "DOT_DOT");
-        tok_dbg(TOKEN_KEYWORD_DOT, "DOT");
-        tok_dbg(TOKEN_KEYWORD_IF, "IF");
-        tok_dbg(TOKEN_KEYWORD_THEN, "THEN");
-        tok_dbg(TOKEN_KEYWORD_ELSE_IF, "ELSE_IF");
-        tok_dbg(TOKEN_KEYWORD_ELSE, "ELSE");
-        tok_dbg(TOKEN_KEYWORD_END_IF, "END_IF");
-        tok_dbg(TOKEN_KEYWORD_FOR, "FOR");
-        tok_dbg(TOKEN_KEYWORD_TO, "TO");
-        tok_dbg(TOKEN_KEYWORD_BY, "BY");
-        tok_dbg(TOKEN_KEYWORD_DO, "DO");
-        tok_dbg(TOKEN_KEYWORD_END_FOR, "END_FOR");
-        tok_dbg(TOKEN_KEYWORD_WHILE, "WHILE");
-        tok_dbg(TOKEN_KEYWORD_END_WHILE, "END_WHILE");
-        tok_dbg(TOKEN_KEYWORD_REPEAT, "REPEAT");
-        tok_dbg(TOKEN_KEYWORD_UNTIL, "UNTIL");
-        tok_dbg(TOKEN_KEYWORD_END_REPEAT, "END_REPEAT");
-        tok_dbg(TOKEN_KEYWORD_CASE, "CASE");
-        tok_dbg(TOKEN_KEYWORD_RETURN, "RETURN");
-        tok_dbg(TOKEN_KEYWORD_EXIT, "EXIT");
-        tok_dbg(TOKEN_KEYWORD_CONTINUE, "CONTINUE");
-        tok_dbg(TOKEN_KEYWORD_POINTER, "POINTER");
-        tok_dbg(TOKEN_KEYWORD_REF, "REF");
-        tok_dbg(TOKEN_KEYWORD_REFERENCE_TO, "REFERENCE_TO");
-        tok_dbg(TOKEN_KEYWORD_ARRAY, "ARRAY");
-        tok_dbg(TOKEN_KEYWORD_STRING, "STRING");
-        tok_dbg(TOKEN_KEYWORD_WIDE_STRING, "WIDE_STRING");
-        tok_dbg(TOKEN_KEYWORD_OF, "OF");
-        tok_dbg(TOKEN_KEYWORD_AT, "AT");
-        tok_dbg(TOKEN_KEYWORD_END_CASE, "END_CASE");
+        tok_str(TOKEN_KEYWORD_PROGRAM, "PROGRAM");
+        tok_str(TOKEN_KEYWORD_CLASS, "CLASS");
+        tok_str(TOKEN_KEYWORD_END_CLASS, "END_CLASS");
+        tok_str(TOKEN_KEYWORD_EXTENDS, "EXTENDS");
+        tok_str(TOKEN_KEYWORD_IMPLEMENTS, "IMPLEMENTS");
+        tok_str(TOKEN_KEYWORD_INTERFACE, "INTERFACE");
+        tok_str(TOKEN_KEYWORD_END_INTERFACE, "END_INTERFACE");
+        tok_str(TOKEN_KEYWORD_PROPERTY, "PROPERTY");
+        tok_str(TOKEN_KEYWORD_END_PROPERTY, "END_PROPERTY");
+        tok_str(TOKEN_KEYWORD_VAR_INPUT, "VAR_INPUT");
+        tok_str(TOKEN_KEYWORD_VAR_OUTPUT, "VAR_OUTPUT");
+        tok_str(TOKEN_KEYWORD_VAR, "VAR");
+        tok_str(TOKEN_KEYWORD_VAR_CONFIG, "VAR_CONFIG");
+        tok_str(TOKEN_KEYWORD_ABSTRACT, "ABSTRACT");
+        tok_str(TOKEN_KEYWORD_FINAL, "FINAL");
+        tok_str(TOKEN_KEYWORD_METHOD, "METHOD");
+        tok_str(TOKEN_KEYWORD_CONSTANT, "CONSTANT");
+        tok_str(TOKEN_KEYWORD_RETAIN, "RETAIN");
+        tok_str(TOKEN_KEYWORD_NON_RETAIN, "NON_RETAIN");
+        tok_str(TOKEN_KEYWORD_VAR_TEMP, "VAR_TEMP");
+        tok_str(TOKEN_KEYWORD_END_METHOD, "END_METHOD");
+        tok_str(TOKEN_KEYWORD_ACCESS_PUBLIC, "ACCESS_PUBLIC");
+        tok_str(TOKEN_KEYWORD_ACCESS_PRIVATE, "ACCESS_PRIVATE");
+        tok_str(TOKEN_KEYWORD_ACCESS_INTERNAL, "ACCESS_INTERNAL");
+        tok_str(TOKEN_KEYWORD_ACCESS_PROTECTED, "ACCESS_PROTECTED");
+        tok_str(TOKEN_KEYWORD_OVERRIDE, "OVERRIDE");
+        tok_str(TOKEN_KEYWORD_VAR_GLOBAL, "VAR_GLOBAL");
+        tok_str(TOKEN_KEYWORD_VAR_IN_OUT, "VAR_IN_OUT");
+        tok_str(TOKEN_KEYWORD_VAR_EXTERNAL, "VAR_EXTERNAL");
+        tok_str(TOKEN_KEYWORD_END_VAR, "END_VAR");
+        tok_str(TOKEN_KEYWORD_END_PROGRAM, "END_PROGRAM");
+        tok_str(TOKEN_KEYWORD_FUNCTION, "FUNCTION");
+        tok_str(TOKEN_KEYWORD_END_FUNCTION, "END_FUNCTION");
+        tok_str(TOKEN_KEYWORD_FUNCTION_BLOCK, "FUNCTION_BLOCK");
+        tok_str(TOKEN_KEYWORD_END_FUNCTION_BLOCK, "END_FUNCTION_BLOCK");
+        tok_str(TOKEN_KEYWORD_TYPE, "TYPE");
+        tok_str(TOKEN_KEYWORD_STRUCT, "STRUCT");
+        tok_str(TOKEN_KEYWORD_END_TYPE, "END_TYPE");
+        tok_str(TOKEN_KEYWORD_END_STRUCT, "END_STRUCT");
+        tok_str(TOKEN_KEYWORD_ACTIONS, "ACTIONS");
+        tok_str(TOKEN_KEYWORD_ACTION, "ACTION");
+        tok_str(TOKEN_KEYWORD_END_ACTION, "END_ACTION");
+        tok_str(TOKEN_KEYWORD_END_ACTIONS, "END_ACTIONS");
+        tok_str(TOKEN_COLON, "COLON");
+        tok_str(TOKEN_SEMICOLON, "SEMICOLON");
+        tok_str(TOKEN_ASSIGN, "ASSIGN");
+        tok_str(TOKEN_KEYWORD_OUTPUT_ASSIGNMENT, "OUTPUT_ASSIGNMENT");
+        tok_str(TOKEN_KEYWORD_REFERENCE_ASSIGNMENT, "REFERENCE_ASSIGNMENT");
+        tok_str(TOKEN_LPAREN, "LPAREN");
+        tok_str(TOKEN_RPAREN, "RPAREN");
+        tok_str(TOKEN_LSQUARE, "LSQUARE");
+        tok_str(TOKEN_RSQUARE, "RSQUARE");
+        tok_str(TOKEN_COMMA, "COMMA");
+        tok_str(TOKEN_DOT_DOT_DOT, "DOT_DOT_DOT");
+        tok_str(TOKEN_DOT_DOT, "DOT_DOT");
+        tok_str(TOKEN_DOT, "DOT");
+        tok_str(TOKEN_KEYWORD_IF, "IF");
+        tok_str(TOKEN_KEYWORD_THEN, "THEN");
+        tok_str(TOKEN_KEYWORD_ELSE_IF, "ELSE_IF");
+        tok_str(TOKEN_KEYWORD_ELSE, "ELSE");
+        tok_str(TOKEN_KEYWORD_END_IF, "END_IF");
+        tok_str(TOKEN_KEYWORD_FOR, "FOR");
+        tok_str(TOKEN_KEYWORD_TO, "TO");
+        tok_str(TOKEN_KEYWORD_BY, "BY");
+        tok_str(TOKEN_KEYWORD_DO, "DO");
+        tok_str(TOKEN_KEYWORD_END_FOR, "END_FOR");
+        tok_str(TOKEN_KEYWORD_WHILE, "WHILE");
+        tok_str(TOKEN_KEYWORD_END_WHILE, "END_WHILE");
+        tok_str(TOKEN_KEYWORD_REPEAT, "REPEAT");
+        tok_str(TOKEN_KEYWORD_UNTIL, "UNTIL");
+        tok_str(TOKEN_KEYWORD_END_REPEAT, "END_REPEAT");
+        tok_str(TOKEN_KEYWORD_CASE, "CASE");
+        tok_str(TOKEN_KEYWORD_RETURN, "RETURN");
+        tok_str(TOKEN_KEYWORD_EXIT, "EXIT");
+        tok_str(TOKEN_KEYWORD_CONTINUE, "CONTINUE");
+        tok_str(TOKEN_KEYWORD_POINTER, "POINTER");
+        tok_str(TOKEN_KEYWORD_REF, "REF");
+        tok_str(TOKEN_KEYWORD_REFERENCE_TO, "REFERENCE_TO");
+        tok_str(TOKEN_KEYWORD_ARRAY, "ARRAY");
+        tok_str(TOKEN_KEYWORD_STRING, "STRING");
+        tok_str(TOKEN_KEYWORD_WIDE_STRING, "WIDE_STRING");
+        tok_str(TOKEN_KEYWORD_OF, "OF");
+        tok_str(TOKEN_KEYWORD_AT, "AT");
+        tok_str(TOKEN_KEYWORD_END_CASE, "END_CASE");
 
-        tok_dbg(TOKEN_OPERATOR_PLUS, "PLUS");
-        tok_dbg(TOKEN_OPERATOR_MINUS, "MINUS");
-        tok_dbg(TOKEN_OPERATOR_MULTIPLICATION, "MULTIPLICATION");
-        tok_dbg(TOKEN_OPERATOR_EXPONENT, "EXPONENT");
-        tok_dbg(TOKEN_OPERATOR_DIVISION, "DIVISION");
-        tok_dbg(TOKEN_OPERATOR_EQ, "EQ");
-        tok_dbg(TOKEN_OPERATOR_NOT_EQ, "NOT_EQ");
-        tok_dbg(TOKEN_OPERATOR_LESS_THAN, "LESS_THAN");
-        tok_dbg(TOKEN_OPERATOR_GREATER_THAN, "GREATER_THAN");
-        tok_dbg(TOKEN_OPERATOR_LESS_THAN_EQ, "LESS_THAN_EQ");
-        tok_dbg(TOKEN_OPERATOR_GREATER_THAN_EQ, "GREATER_THAN_EQ");
-        tok_dbg(TOKEN_OPERATOR_AMP, "AMP");
-        tok_dbg(TOKEN_OPERATOR_DEREF, "DEREF");
-        tok_dbg(TOKEN_OPERATOR_MODULO, "MODULO");
-        tok_dbg(TOKEN_OPERATOR_AND, "AND");
-        tok_dbg(TOKEN_OPERATOR_OR, "OR");
-        tok_dbg(TOKEN_OPERATOR_XOR, "XOR");
-        tok_dbg(TOKEN_OPERATOR_NOT, "NOT");
+        tok_str(TOKEN_OPERATOR_PLUS, "PLUS");
+        tok_str(TOKEN_OPERATOR_MINUS, "MINUS");
+        tok_str(TOKEN_OPERATOR_MULTIPLICATION, "MULTIPLICATION");
+        tok_str(TOKEN_OPERATOR_EXPONENT, "EXPONENT");
+        tok_str(TOKEN_OPERATOR_DIVISION, "DIVISION");
+        tok_str(TOKEN_OPERATOR_EQ, "EQ");
+        tok_str(TOKEN_OPERATOR_NOT_EQ, "NOT_EQ");
+        tok_str(TOKEN_OPERATOR_LESS_THAN, "LESS_THAN");
+        tok_str(TOKEN_OPERATOR_GREATER_THAN, "GREATER_THAN");
+        tok_str(TOKEN_OPERATOR_LESS_THAN_EQ, "LESS_THAN_EQ");
+        tok_str(TOKEN_OPERATOR_GREATER_THAN_EQ, "GREATER_THAN_EQ");
+        tok_str(TOKEN_OPERATOR_AMP, "AMP");
+        tok_str(TOKEN_OPERATOR_DEREF, "DEREF");
+        tok_str(TOKEN_OPERATOR_MODULO, "MODULO");
+        tok_str(TOKEN_OPERATOR_AND, "AND");
+        tok_str(TOKEN_OPERATOR_OR, "OR");
+        tok_str(TOKEN_OPERATOR_XOR, "XOR");
+        tok_str(TOKEN_OPERATOR_NOT, "NOT");
 
-        tok_dbg(TOKEN_IDENT, "IDENT %s", token->string_val);
-        tok_dbg(TOKEN_LITERAL_STRING, "STR LITERAL '%s'", token->string_val);
-        tok_dbg(TOKEN_EOF, "EOF");
-        tok_dbg(TOKEN_ILLEGAL, "ILLEGAL %s", token->string_val);
+        tok_str(TOKEN_IDENT, "IDENT: ");
+        tok_str(TOKEN_LITERAL_STRING, "STR LITERAL ");
+        tok_str(TOKEN_EOF, "EOF");
+        tok_str(TOKEN_ILLEGAL, "ILLEGAL: ");
 
-        tok_dbg(TOKEN_LITERAL_INTEGER, "INT LITERAL %d", token->int_val);
-        tok_dbg(TOKEN_LITERAL_REAL, "REAL LITERAL %f", token->float_val);
+        tok_str(TOKEN_LITERAL_INTEGER, "INT LITERAL: ");
+        tok_str(TOKEN_LITERAL_REAL, "REAL LITERAL: ");
+
+        tok_str(TOKEN_KEYWORD_INT, "TYPE INT");
+        tok_str(TOKEN_KEYWORD_REAL, "TYPE REAL");
 
         case TOKEN_PROPERTY_EXTERNAL:
         case TOKEN_PROPERTY_BY_REF:
@@ -554,6 +653,14 @@ void token_show(Token *token) {
             stil_warn("UNIMPLEMENTED");
             break;
     }
+
+    if(token->string_val) {
+        strcat(buffer, token->string_val);
+    }
+    char *tstr = stil_malloc(256);
+    tstr = strcpy(tstr, buffer);
+
+    return tstr;
 }
 
-#undef tok_dbg
+#undef tok_str
